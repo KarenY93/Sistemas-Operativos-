@@ -3,164 +3,129 @@ package modelo;
 import java.util.Random;
 
 /**
- * Representa un astronauta que consume oxígeno y necesita recargas periódicas.
- * Implementa Runnable para ejecutarse como hilo independiente.
- * Demuestra: hilos, estados sincronizados, consumo de recurso.
+ * Modelo avanzado del astronauta.
+ * Contiene SOLO reglas de dominio (sin concurrencia).
  */
-public class Astronauta implements Runnable {
+public class Astronauta {
 
     public enum Estado {
-        NORMAL,          // Operando normalmente
-        ESPERANDO,       // Esperando turno en el dispensador
-        RECARGANDO,      // Usando el dispensador
-        EMERGENCIA,      // Oxígeno crítico (< 10%)
-        TERMINADO        // Misión finalizada
+        NORMAL,
+        EMERGENCIA,
+        RECUPERACION,
+        TERMINADO
     }
 
     private final String nombre;
-    private int oxigeno;            // 0-100%
-    private volatile Estado estado;
-    private volatile boolean activo;
-    private final DispensadorOxigeno dispensador;
-    private final Random random;
-    private Thread hiloPropio;
+    private int oxigeno; // 0 - 100
+    private Estado estado;
+    private boolean activo;
 
-    // Constantes de simulación
-    private static final int CONSUMO_MIN = 1;
-    private static final int CONSUMO_MAX = 4;
+    // Dinámica avanzada
+    private int ciclosVividos;
+    private int fatiga; // 0 - 100
+
+    // Reglas de dominio
+    private static final int CONSUMO_BASE_MIN = 1;
+    private static final int CONSUMO_BASE_MAX = 4;
     private static final int UMBRAL_RECARGA = 30;
     private static final int UMBRAL_EMERGENCIA = 10;
+    private static final int FATIGA_MAX = 100;
 
-    /**
-     * Constructor del astronauta.
-     * @param nombre Identificador del astronauta
-     * @param oxigenoInicial Nivel inicial de oxígeno (0-100)
-     * @param dispensador Referencia al dispensador compartido
-     */
-    public Astronauta(String nombre, int oxigenoInicial, DispensadorOxigeno dispensador) {
+    private final Random random = new Random();
+
+    public Astronauta(String nombre, int oxigenoInicial) {
         this.nombre = nombre;
         this.oxigeno = Math.max(0, Math.min(100, oxigenoInicial));
-        this.dispensador = dispensador;
         this.estado = Estado.NORMAL;
         this.activo = true;
-        this.random = new Random();
+        this.ciclosVividos = 0;
+        this.fatiga = 0;
     }
 
     /**
-     * Inicia el hilo del astronauta.
+     * Simula un ciclo de vida del astronauta.
      */
-    public void iniciarMision() {
-        if (hiloPropio == null || !hiloPropio.isAlive()) {
-            hiloPropio = new Thread(this, "Astronauta-" + nombre);
-            hiloPropio.start();
-            System.out.println(nombre + " inicia misión (O₂: " + oxigeno + "%)");
+    public void consumirOxigeno() {
+        if (!activo || estado == Estado.TERMINADO) return;
+
+        ciclosVividos++;
+        aumentarFatiga();
+
+        int consumo = calcularConsumo();
+        oxigeno = Math.max(0, oxigeno - consumo);
+
+        if (oxigeno < UMBRAL_EMERGENCIA) {
+            estado = Estado.EMERGENCIA;
         }
-    }
 
-    @Override
-    public void run() {
-        try {
-            while (activo && oxigeno > 0) {
-                // Ciclo de vida del astronauta
-                cicloVida();
-
-                // Pequeña pausa entre ciclos (variable)
-                Thread.sleep(1500 + random.nextInt(1000));
-            }
-        } catch (InterruptedException e) {
-            System.out.println(nombre + " interrumpido durante misión");
-            Thread.currentThread().interrupt();
-        } finally {
+        if (oxigeno <= 0) {
             estado = Estado.TERMINADO;
-            if (oxigeno <= 0) {
-                System.out.println("☠️ " + nombre + " ha muerto por falta de oxígeno");
-            } else {
-                System.out.println("✓ " + nombre + " finaliza misión exitosamente");
-            }
+            activo = false;
         }
     }
 
     /**
-     * Un ciclo de vida del astronauta: consume oxígeno y toma decisiones.
+     * Regla de consumo basada en estado y fatiga.
      */
-    private void cicloVida() {
-        // 1. Consumir oxígeno (solo si no está recargando)
-        if (estado != Estado.RECARGANDO) {
-            int consumo = CONSUMO_MIN + random.nextInt(CONSUMO_MAX);
-            oxigeno = Math.max(0, oxigeno - consumo);
+    private int calcularConsumo() {
+        int base = CONSUMO_BASE_MIN + random.nextInt(CONSUMO_BASE_MAX);
 
-            // 2. Actualizar estado según nivel
-            if (oxigeno < UMBRAL_EMERGENCIA && estado != Estado.EMERGENCIA) {
-                estado = Estado.EMERGENCIA;
-                System.out.println("¡EMERGENCIA! " + nombre + " tiene solo " + oxigeno + "% de O₂");
-            }
-
-            // 3. Decidir si necesita recarga
-            if (oxigeno < UMBRAL_RECARGA && estado != Estado.ESPERANDO && estado != Estado.RECARGANDO) {
-                estado = Estado.ESPERANDO;
-                System.out.println(nombre + " solicita recarga (O₂: " + oxigeno + "%)");
-
-                // Solicitar acceso al dispensador
-                boolean acceso = dispensador.solicitarAcceso(this);
-
-                if (!acceso) {
-                    // No obtuvo acceso inmediato, volver a NORMAL
-                    estado = Estado.NORMAL;
-                }
-                // Si obtuvo acceso, el dispensador cambiará su estado a RECARGANDO
-            }
+        if (estado == Estado.EMERGENCIA) {
+            base += 2; // hiperventilación
         }
+
+        base += fatiga / 25; // fatiga aumenta consumo
+
+        return base;
     }
 
     /**
-     * Realiza la recarga de oxígeno. Este método es llamado por el dispensador.
+     * Aumenta la fatiga con el tiempo.
      */
-    public void realizarRecarga() {
-        if (estado == Estado.RECARGANDO || estado == Estado.TERMINADO) {
-            return; // Ya está recargando o terminó
-        }
+    private void aumentarFatiga() {
+        fatiga = Math.min(FATIGA_MAX, fatiga + 5);
+    }
 
-        estado = Estado.RECARGANDO;
-        System.out.println("⚡ " + nombre + " INICIA recarga (de " + oxigeno + "% a 100%)");
+    /**
+     * Recarga oxígeno y reduce fatiga.
+     */
+    public void recargar() {
+        if (estado == Estado.TERMINADO) return;
 
-        try {
-            // Tiempo de recarga proporcional a la urgencia
-            int tiempoRecarga = calcularTiempoRecarga();
-            Thread.sleep(tiempoRecarga);
+        oxigeno = 100;
+        fatiga = Math.max(0, fatiga - 40);
+        estado = Estado.RECUPERACION;
+    }
 
-            // Recargar al máximo
-            oxigeno = 100;
+    /**
+     * Se llama después de algunos ciclos tras la recarga.
+     */
+    public void completarRecuperacion() {
+        if (estado == Estado.RECUPERACION) {
             estado = Estado.NORMAL;
-
-            System.out.println(nombre + " COMPLETA recarga (100% O₂) en " + tiempoRecarga + "ms");
-
-        } catch (InterruptedException e) {
-            System.out.println("Recarga de " + nombre + " interrumpida");
-            Thread.currentThread().interrupt();
         }
     }
 
-    /**
-     * Calcula tiempo de recarga basado en nivel de oxígeno.
-     * @return Tiempo en milisegundos
-     */
-    private int calcularTiempoRecarga() {
-        if (oxigeno < 15) return 800;   // Recarga rápida para emergencias
-        if (oxigeno < 25) return 1200;  // Recarga media
-        return 1800;                    // Recarga normal
+    public boolean necesitaRecarga() {
+        return oxigeno < UMBRAL_RECARGA && estado != Estado.TERMINADO;
     }
 
-    /**
-     * Detiene al astronauta de manera segura.
-     */
-    public void detener() {
-        activo = false;
-        if (hiloPropio != null) {
-            hiloPropio.interrupt();
-        }
+    public boolean estaEnEstadoCritico() {
+        return estado == Estado.EMERGENCIA;
     }
 
-    // ========== GETTERS Y SETTERS ==========
+    public int getPrioridad() {
+        if (oxigeno < 10) return 4;
+        if (oxigeno < 20) return 3;
+        if (oxigeno < 30) return 2;
+        return 1;
+    }
+
+    public boolean haFalladoLaMision() {
+        return estado == Estado.TERMINADO && oxigeno <= 0;
+    }
+
+    // ===== GETTERS =====
 
     public String getNombre() {
         return nombre;
@@ -174,37 +139,20 @@ public class Astronauta implements Runnable {
         return estado;
     }
 
-    public void setEstado(Estado estado) {
-        this.estado = estado;
+    public int getFatiga() {
+        return fatiga;
     }
 
-    public boolean isActivo() {
-        return activo;
-    }
-
-    public boolean necesitaRecarga() {
-        return oxigeno < UMBRAL_RECARGA && estado != Estado.RECARGANDO && estado != Estado.TERMINADO;
-    }
-
-    public int getPrioridad() {
-        // Prioridad inversa: menor oxígeno = mayor prioridad (1-4)
-        if (oxigeno < 10) return 4;      // Máxima prioridad
-        if (oxigeno < 20) return 3;      // Alta prioridad
-        if (oxigeno < 30) return 2;      // Media prioridad
-        return 1;                        // Baja prioridad
+    public int getCiclosVividos() {
+        return ciclosVividos;
     }
 
     @Override
     public String toString() {
-        String iconoPrioridad;
-        switch (getPrioridad()) {
-            case 4: iconoPrioridad = "🔴"; break;
-            case 3: iconoPrioridad = "🟠"; break;
-            case 2: iconoPrioridad = "🟡"; break;
-            default: iconoPrioridad = "🟢";
-        }
-
-        return String.format("%s %-6s | O₂: %3d%% | Estado: %-12s | Prioridad: %d",
-                iconoPrioridad, nombre, oxigeno, estado, getPrioridad());
+        return nombre +
+                " | O₂: " + oxigeno + "%" +
+                " | Fatiga: " + fatiga +
+                " | Estado: " + estado +
+                " | Ciclos: " + ciclosVividos;
     }
 }
