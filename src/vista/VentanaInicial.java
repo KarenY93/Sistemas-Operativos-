@@ -1,5 +1,7 @@
 package vista;
 
+import controlador.ControladorSimulacion;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -52,9 +54,11 @@ public class VentanaInicial extends JFrame {
 
 
         btnComenzar.addActionListener(e -> {
-            SwingUtilities.invokeLater(() -> new VentanaSimulacion());
+            VentanaSimulacion v = new VentanaSimulacion();
+            new ControladorSimulacion(v);
             dispose();
         });
+
 
 
         setExtendedState(JFrame.MAXIMIZED_BOTH);

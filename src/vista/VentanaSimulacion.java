@@ -173,6 +173,23 @@ public class VentanaSimulacion extends JFrame {
         });
     }
 
+
+    public void limpiarLog() {
+        SwingUtilities.invokeLater(() -> areaLog.setText(""));
+    }
+
+    public void limpiarCola() {
+        SwingUtilities.invokeLater(() -> colaModel.clear());
+    }
+
+    public void resetearDispensador() {
+        SwingUtilities.invokeLater(() -> {
+            lblDispensador.setText("LIBRE");
+            lblDispensador.setBackground(Color.GREEN);
+        });
+    }
+
+
     public void habilitarControles(boolean iniciarEnabled) {
         SwingUtilities.invokeLater(() -> {
             btnIniciar.setEnabled(iniciarEnabled);
@@ -180,4 +197,5 @@ public class VentanaSimulacion extends JFrame {
             spinnerCantidad.setEnabled(iniciarEnabled);
         });
     }
+
 }

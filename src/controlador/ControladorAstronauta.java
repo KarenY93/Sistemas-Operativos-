@@ -1,65 +1,65 @@
 package controlador;
 
 import modelo.Astronauta;
-import modelo.DispensadorOxigeno;
+import vista.VentanaSimulacion;
 
-/**
- * Controlador del Astronauta.
- * Representa un PROCESO (hilo) que compite por el dispensador de oxígeno.
- */
 public class ControladorAstronauta implements Runnable {
 
     private final Astronauta astronauta;
-    private final DispensadorOxigeno dispensador;
+    private final ControladorDispensadorOxigeno controladorDispensador;
+    private final VentanaSimulacion vista;
+    private final int delayMs;
+
     private boolean activo;
 
-    // Tiempo base entre ciclos (simula planificación del SO)
-    private static final int TIEMPO_CICLO = 1000;
-
     public ControladorAstronauta(Astronauta astronauta,
-                                 DispensadorOxigeno dispensador) {
+                                 ControladorDispensadorOxigeno controladorDispensador,
+                                 VentanaSimulacion vista,
+                                 int delayMs) {
+
         this.astronauta = astronauta;
-        this.dispensador = dispensador;
+        this.controladorDispensador = controladorDispensador;
+        this.vista = vista;
+        this.delayMs = delayMs;
         this.activo = true;
     }
 
     @Override
     public void run() {
-
         try {
             while (activo && !astronauta.haFalladoLaMision()) {
 
-                // 1️⃣ Ejecuta un ciclo de vida
+                System.out.println(
+                        astronauta.getNombre() + " | O2=" + astronauta.getOxigeno()
+                );
+
                 astronauta.consumirOxigeno();
-                mostrarEstado();
 
-                // 2️⃣ Solicita oxígeno si es necesario (sección crítica)
                 if (astronauta.necesitaRecarga()) {
-                    System.out.println("🔴 " + astronauta.getNombre()
-                            + " solicita acceso al dispensador");
 
-                    dispensador.solicitarRecarga(astronauta);
+                    // 1️⃣ Intenta acceder
+                    vista.mostrarIntento(astronauta.getNombre());
+                    vista.agregarACola(astronauta.getNombre());
 
-                    System.out.println("🟢 " + astronauta.getNombre()
-                            + " terminó la recarga");
+                    // 2️⃣ Solicita el recurso (CONTROLADOR, no MODELO)
+                    controladorDispensador.solicitarRecarga(astronauta);
+
+                    // 3️⃣ Actualización visual
+                    vista.removerDeCola(astronauta.getNombre());
+                    vista.mostrarAcceso(astronauta.getNombre());
+                    vista.actualizarEstadoDispensador(true);
+
+                    vista.mostrarSalida(astronauta.getNombre());
+                    vista.actualizarEstadoDispensador(false);
                 }
 
-                // 3️⃣ Finaliza recuperación
                 astronauta.completarRecuperacion();
-
-                // 4️⃣ Espera (simula quantum de CPU)
-                Thread.sleep(TIEMPO_CICLO);
+                Thread.sleep(delayMs);
             }
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-
-        System.out.println("☠️ Proceso finalizado: " + astronauta.getNombre());
-    }
-
-    private void mostrarEstado() {
-        System.out.println(astronauta.toString());
     }
 
     public void detener() {

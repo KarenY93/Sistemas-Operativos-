@@ -1,59 +1,27 @@
 package modelo;
 
-import java.util.LinkedList;
-import java.util.List;
-
 public class DispensadorOxigeno {
-    private boolean ocupado;
-    private final List<Astronauta> colaEspera;
 
-    public DispensadorOxigeno() {
-        this.ocupado = false;
-        this.colaEspera = new LinkedList<>();
-    }
+    private boolean ocupado = false;
 
-    public void solicitarRecarga(Astronauta astronauta) throws InterruptedException {
-        synchronized (this) {
-            colaEspera.add(astronauta);
+    public synchronized void solicitarRecarga(Astronauta a)
+            throws InterruptedException {
 
-            while (ocupado || !esTurnoDelAstronauta(astronauta)) {
-                wait();
-            }
-            ocupado = true;
-            colaEspera.remove(astronauta);
+        while (ocupado) {
+            wait();
         }
 
-        ejecutarRecarga(astronauta);
-
-        synchronized (this) {
-            ocupado = false;
-            notifyAll(); 
-        }
+        // entra a la sección crítica
+        ocupado = true;
     }
 
-    private boolean esTurnoDelAstronauta(Astronauta astronauta) {
-        for (Astronauta a : colaEspera) {
-            if (a.estaEnEstadoCritico()) {
-                return a == astronauta;
-            }
-        }
-        return colaEspera.get(0) == astronauta;
-    }
-
-    private void ejecutarRecarga(Astronauta astronauta) throws InterruptedException {
-        int tiempoRecarga = astronauta.estaEnEstadoCritico() ? 800 : 1500;
-        Thread.sleep(tiempoRecarga);
-
-        astronauta.recargar();
+    public synchronized void liberar() {
+        ocupado = false;
+        notifyAll();
     }
 
     public synchronized boolean estaOcupado() {
         return ocupado;
     }
-
-    public synchronized int getCantidadEnEspera() {
-        return colaEspera.size();
-    }
 }
 
-    

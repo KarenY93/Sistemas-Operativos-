@@ -23,7 +23,15 @@ public class ControladorDispensadorOxigeno {
 
         mostrarSolicitud(astronauta);
 
+        // 🔒 Entra a la sección crítica
         dispensador.solicitarRecarga(astronauta);
+
+        // ⏱ Uso del recurso
+        Thread.sleep(astronauta.estaEnEstadoCritico() ? 800 : 1500);
+        astronauta.recargar();
+
+        // 🔓 Sale de la sección crítica
+        dispensador.liberar();
 
         mostrarFinalizacion(astronauta);
     }
@@ -32,23 +40,18 @@ public class ControladorDispensadorOxigeno {
         return dispensador.estaOcupado();
     }
 
-    public int astronautasEnEspera() {
-        return dispensador.getCantidadEnEspera();
-    }
-
-    /* ===== Métodos de apoyo (logging / vista) ===== */
+    /* ===== Logging ===== */
 
     private void mostrarSolicitud(Astronauta astronauta) {
         System.out.println("🟡 [DISPENSADOR] "
                 + astronauta.getNombre()
-                + " solicita oxígeno | Estado: "
-                + astronauta.getEstado());
+                + " solicita oxígeno");
     }
 
     private void mostrarFinalizacion(Astronauta astronauta) {
         System.out.println("🟢 [DISPENSADOR] "
                 + astronauta.getNombre()
-                + " finalizó recarga | O₂ = "
+                + " terminó recarga | O₂ = "
                 + astronauta.getOxigeno() + "%");
     }
 }
