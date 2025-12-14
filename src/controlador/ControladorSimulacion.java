@@ -8,18 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ControladorSimulacion {
-
     private final VentanaSimulacion vista;
-    private DispensadorOxigeno dispensador;
-
     private final List<ControladorAstronauta> procesos;
     private final List<Thread> hilos;
+    private ControladorDispensadorOxigeno controladorDispensador;
 
     public ControladorSimulacion(VentanaSimulacion vista) {
         this.vista = vista;
         this.procesos = new ArrayList<>();
         this.hilos = new ArrayList<>();
-
         conectarEventos();
     }
 
@@ -31,18 +28,19 @@ public class ControladorSimulacion {
 
     private void iniciarSimulacion() {
         vista.habilitarControles(false);
+        vista.limpiarCola();
+        vista.resetearDispensador();
 
         int cantidad = vista.getCantidadAstronautas();
         int velocidad = vista.getVelocidadMs();
 
-        dispensador = new DispensadorOxigeno();
-
         procesos.clear();
         hilos.clear();
 
+        // Solo una instancia del dispensador
         DispensadorOxigeno dispensador = new DispensadorOxigeno();
-        ControladorDispensadorOxigeno controladorDispensador =
-                new ControladorDispensadorOxigeno(dispensador);
+        controladorDispensador = new ControladorDispensadorOxigeno(dispensador);
+        controladorDispensador.setVista(vista); // ⭐ PASA LA VISTA AL CONTROLADOR
 
         for (int i = 1; i <= cantidad; i++) {
             Astronauta a = new Astronauta("Astronauta " + i, 100);
@@ -51,30 +49,46 @@ public class ControladorSimulacion {
                     new ControladorAstronauta(a, controladorDispensador, vista, velocidad);
 
             Thread hilo = new Thread(proceso, a.getNombre());
+
+            procesos.add(proceso);
+            hilos.add(hilo);
+
             hilo.start();
         }
-
     }
 
     private void detenerSimulacion() {
+        // Detener primero los procesos
         for (ControladorAstronauta p : procesos) {
             p.detener();
         }
 
+        // Interrumpir los hilos
         for (Thread t : hilos) {
             t.interrupt();
         }
 
+        // Esperar a que todos terminen
+        for (Thread t : hilos) {
+            try {
+                t.join(1000); // Esperar 1 segundo máximo
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        // Limpiar
+        procesos.clear();
+        hilos.clear();
+
         vista.habilitarControles(true);
+        vista.actualizarEstadoDispensador(false); // Asegurar que esté libre
     }
 
     private void resetearSimulacion() {
-        //limpieza visual
         detenerSimulacion();
-
         vista.limpiarLog();
         vista.limpiarCola();
         vista.resetearDispensador();
     }
-
 }
