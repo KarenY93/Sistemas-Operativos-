@@ -139,6 +139,10 @@ public class Astronauta {
         return estado;
     }
 
+    public boolean isActivo() {
+        return activo;
+    }
+
     public int getFatiga() {
         return fatiga;
     }
