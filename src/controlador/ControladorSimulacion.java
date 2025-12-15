@@ -1,11 +1,10 @@
 package controlador;
 
+import java.util.ArrayList;
+import java.util.List;
 import modelo.Astronauta;
 import modelo.DispensadorOxigeno;
 import vista.VentanaSimulacion;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class ControladorSimulacion {
     private final VentanaSimulacion vista;
@@ -89,6 +88,7 @@ public class ControladorSimulacion {
         detenerSimulacion();
         vista.limpiarLog();
         vista.limpiarCola();
+        vista.limpiarTablaAstronautas();
         vista.resetearDispensador();
     }
 }
