@@ -1,59 +1,29 @@
 package modelo;
 
-import java.util.LinkedList;
-import java.util.List;
-
 public class DispensadorOxigeno {
-    private boolean ocupado;
-    private final List<Astronauta> colaEspera;
+    private boolean ocupado = false;
+    private String usuarioActual = null;
 
-    public DispensadorOxigeno() {
-        this.ocupado = false;
-        this.colaEspera = new LinkedList<>();
-    }
-
-    public void solicitarRecarga(Astronauta astronauta) throws InterruptedException {
-        synchronized (this) {
-            colaEspera.add(astronauta);
-
-            while (ocupado || !esTurnoDelAstronauta(astronauta)) {
-                wait();
-            }
-            ocupado = true;
-            colaEspera.remove(astronauta);
+    public synchronized void solicitarRecarga(Astronauta a) throws InterruptedException {
+        while (ocupado) {
+            System.out.println("⏳ " + a.getNombre() + " esperando. Usuario actual: " + usuarioActual);
+            wait();
         }
 
-        ejecutarRecarga(astronauta);
-
-        synchronized (this) {
-            ocupado = false;
-            notifyAll(); 
-        }
+        // entra a la sección crítica
+        ocupado = true;
+        usuarioActual = a.getNombre();
+        System.out.println("✅ " + a.getNombre() + " accedió al dispensador");
     }
 
-    private boolean esTurnoDelAstronauta(Astronauta astronauta) {
-        for (Astronauta a : colaEspera) {
-            if (a.estaEnEstadoCritico()) {
-                return a == astronauta;
-            }
-        }
-        return colaEspera.get(0) == astronauta;
-    }
-
-    private void ejecutarRecarga(Astronauta astronauta) throws InterruptedException {
-        int tiempoRecarga = astronauta.estaEnEstadoCritico() ? 800 : 1500;
-        Thread.sleep(tiempoRecarga);
-
-        astronauta.recargar();
+    public synchronized void liberar() {
+        System.out.println("🚪 " + usuarioActual + " liberó el dispensador");
+        ocupado = false;
+        usuarioActual = null;
+        notifyAll();
     }
 
     public synchronized boolean estaOcupado() {
         return ocupado;
     }
-
-    public synchronized int getCantidadEnEspera() {
-        return colaEspera.size();
-    }
 }
-
-    

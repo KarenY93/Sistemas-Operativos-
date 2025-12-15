@@ -1,5 +1,12 @@
+import controlador.ControladorSimulacion;
+import modelo.DispensadorOxigeno;
+import vista.VentanaInicial;
+import vista.VentanaSimulacion;
+
+import javax.swing.*;
+
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello World");
+        SwingUtilities.invokeLater(VentanaInicial::new);
     }
 }

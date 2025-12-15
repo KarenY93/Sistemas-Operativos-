@@ -2,12 +2,9 @@ package modelo;
 
 import java.util.Random;
 
-/**
- * Modelo avanzado del astronauta.
- * Contiene SOLO reglas de dominio (sin concurrencia).
- */
 public class Astronauta {
 
+    /* ===== Estados ===== */
     public enum Estado {
         NORMAL,
         EMERGENCIA,
@@ -15,24 +12,32 @@ public class Astronauta {
         TERMINADO
     }
 
+    /* ===== Atributos ===== */
     private final String nombre;
-    private int oxigeno; // 0 - 100
+    private int oxigeno;
     private Estado estado;
     private boolean activo;
 
-    // Dinámica avanzada
     private int ciclosVividos;
-    private int fatiga; // 0 - 100
+    private int fatiga;
 
-    // Reglas de dominio
+    /* ===== Reglas de dominio ===== */
     private static final int CONSUMO_BASE_MIN = 1;
     private static final int CONSUMO_BASE_MAX = 4;
+
     private static final int UMBRAL_RECARGA = 30;
     private static final int UMBRAL_EMERGENCIA = 10;
+
     private static final int FATIGA_MAX = 100;
+
+    /* ===== Dinámica de fatiga ===== */
+    private static final int CICLOS_POR_FATIGA = 4;
+    private static final int FATIGA_POR_CICLO = 2;
+    private static final int PROB_RECUPERACION = 20;
 
     private final Random random = new Random();
 
+    /* ===== Constructor ===== */
     public Astronauta(String nombre, int oxigenoInicial) {
         this.nombre = nombre;
         this.oxigeno = Math.max(0, Math.min(100, oxigenoInicial));
@@ -42,14 +47,14 @@ public class Astronauta {
         this.fatiga = 0;
     }
 
-    /**
-     * Simula un ciclo de vida del astronauta.
-     */
+    /* ===== Ciclo de vida ===== */
     public void consumirOxigeno() {
         if (!activo || estado == Estado.TERMINADO) return;
 
         ciclosVividos++;
+
         aumentarFatiga();
+        recuperarFatigaAleatoria();
 
         int consumo = calcularConsumo();
         oxigeno = Math.max(0, oxigeno - consumo);
@@ -64,48 +69,46 @@ public class Astronauta {
         }
     }
 
-    /**
-     * Regla de consumo basada en estado y fatiga.
-     */
+    /* ===== Reglas internas ===== */
     private int calcularConsumo() {
         int base = CONSUMO_BASE_MIN + random.nextInt(CONSUMO_BASE_MAX);
 
         if (estado == Estado.EMERGENCIA) {
-            base += 2; // hiperventilación
+            base += 2;
         }
 
-        base += fatiga / 25; // fatiga aumenta consumo
-
+        base += fatiga / 30;
         return base;
     }
 
-    /**
-     * Aumenta la fatiga con el tiempo.
-     */
     private void aumentarFatiga() {
-        fatiga = Math.min(FATIGA_MAX, fatiga + 5);
+        if (ciclosVividos % CICLOS_POR_FATIGA == 0) {
+            fatiga = Math.min(FATIGA_MAX, fatiga + FATIGA_POR_CICLO);
+        }
     }
 
-    /**
-     * Recarga oxígeno y reduce fatiga.
-     */
+    private void recuperarFatigaAleatoria() {
+        if (fatiga > 0 && random.nextInt(PROB_RECUPERACION) == 0) {
+            fatiga--;
+        }
+    }
+
+    /* ===== Recarga ===== */
     public void recargar() {
         if (estado == Estado.TERMINADO) return;
 
         oxigeno = 100;
-        fatiga = Math.max(0, fatiga - 40);
+        fatiga = Math.max(0, fatiga - 30);
         estado = Estado.RECUPERACION;
     }
 
-    /**
-     * Se llama después de algunos ciclos tras la recarga.
-     */
     public void completarRecuperacion() {
         if (estado == Estado.RECUPERACION) {
             estado = Estado.NORMAL;
         }
     }
 
+    /* ===== Consultas ===== */
     public boolean necesitaRecarga() {
         return oxigeno < UMBRAL_RECARGA && estado != Estado.TERMINADO;
     }
@@ -114,19 +117,11 @@ public class Astronauta {
         return estado == Estado.EMERGENCIA;
     }
 
-    public int getPrioridad() {
-        if (oxigeno < 10) return 4;
-        if (oxigeno < 20) return 3;
-        if (oxigeno < 30) return 2;
-        return 1;
-    }
-
     public boolean haFalladoLaMision() {
-        return estado == Estado.TERMINADO && oxigeno <= 0;
+        return estado == Estado.TERMINADO;
     }
 
-    // ===== GETTERS =====
-
+    /* ===== Getters ===== */
     public String getNombre() {
         return nombre;
     }
@@ -151,6 +146,7 @@ public class Astronauta {
         return ciclosVividos;
     }
 
+    /* ===== Debug ===== */
     @Override
     public String toString() {
         return nombre +
