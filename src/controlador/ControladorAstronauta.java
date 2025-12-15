@@ -5,11 +5,15 @@ import vista.VentanaSimulacion;
 
 public class ControladorAstronauta implements Runnable {
 
-    private final Astronauta astronauta;
-    private final ControladorDispensadorOxigeno controladorDispensador;
-    private final VentanaSimulacion vista;
-    private final int delayMs;
+    /* ===== Referencias MVC ===== */
+    private final Astronauta astronauta; // Modelo
+    private final ControladorDispensadorOxigeno controladorDispensador; // Controlador compartido
+    private final VentanaSimulacion vista; // Vista
 
+    /* ===== Parámetros de ejecución ===== */
+    private final int delayMs; // Ritmo del ciclo
+
+    /* ===== Estado del hilo ===== */
     private boolean activo;
     private boolean esperandoDispensador;
 
@@ -30,18 +34,19 @@ public class ControladorAstronauta implements Runnable {
         try {
             while (activo && !astronauta.haFalladoLaMision()) {
 
-                // 1️⃣ Ciclo normal (SIEMPRE consume oxígeno)
+                /* ===== Ciclo de vida ===== */
+                // El astronauta siempre consume oxígeno
                 astronauta.consumirOxigeno();
                 vista.actualizarAstronauta(astronauta);
 
-                // 2️⃣ Solicitar dispensador SIN bloquear el ciclo
+                /* ===== Solicitud de recarga concurrente ===== */
                 if (astronauta.necesitaRecarga() && !esperandoDispensador) {
                     esperandoDispensador = true;
 
                     vista.mostrarIntento(astronauta.getNombre());
                     vista.agregarACola(astronauta.getNombre());
 
-                    // 🔹 Solicitud concurrente (sin espera artificial)
+                    // Hilo separado para no bloquear el ciclo principal
                     new Thread(() -> {
                         try {
                             controladorDispensador.solicitarRecarga(astronauta);
@@ -54,19 +59,21 @@ public class ControladorAstronauta implements Runnable {
                     }, "Req-" + astronauta.getNombre()).start();
                 }
 
-                // 3️⃣ Recuperación post-recarga
+                /* ===== Post-recuperación ===== */
                 astronauta.completarRecuperacion();
 
-                // 4️⃣ Ritmo del ciclo
+                // Control de velocidad de simulación
                 Thread.sleep(delayMs);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
+            // Limpieza visual en caso de finalización abrupta
             vista.removerDeCola(astronauta.getNombre());
         }
     }
 
+    /* ===== Detención controlada del hilo ===== */
     public void detener() {
         activo = false;
     }

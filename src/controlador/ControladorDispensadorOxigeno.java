@@ -29,7 +29,7 @@ public class ControladorDispensadorOxigeno {
             vista.actualizarEstadoDispensador(true);
         }
 
-        // ⏱ Uso del recurso
+        // Uso del recurso
         Thread.sleep(astronauta.estaEnEstadoCritico() ? 800 : 1500);
         astronauta.recargar();
 

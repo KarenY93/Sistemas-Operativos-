@@ -4,40 +4,42 @@ import java.util.Random;
 
 public class Astronauta {
 
-    /* ===== Estados ===== */
+    /* ===== Estados del astronauta ===== */
     public enum Estado {
-        NORMAL,
-        EMERGENCIA,
-        RECUPERACION,
-        TERMINADO
+        NORMAL,        // Operación estable
+        EMERGENCIA,    // Oxígeno crítico
+        RECUPERACION,  // Post-recarga
+        TERMINADO      // Misión fallida
     }
 
-    /* ===== Atributos ===== */
+    /* ===== Atributos principales ===== */
     private final String nombre;
-    private int oxigeno;
+    private int oxigeno;        // 0 - 100
     private Estado estado;
     private boolean activo;
 
-    private int ciclosVividos;
-    private int fatiga;
+    /* ===== Variables de simulación ===== */
+    private int ciclosVividos; // Iteraciones de vida
+    private int fatiga;        // Cansancio acumulado
 
-    /* ===== Reglas de dominio ===== */
+    /* ===== Reglas de consumo de oxígeno ===== */
     private static final int CONSUMO_BASE_MIN = 1;
     private static final int CONSUMO_BASE_MAX = 4;
 
     private static final int UMBRAL_RECARGA = 30;
     private static final int UMBRAL_EMERGENCIA = 10;
 
+    /* ===== Límites de fatiga ===== */
     private static final int FATIGA_MAX = 100;
 
     /* ===== Dinámica de fatiga ===== */
-    private static final int CICLOS_POR_FATIGA = 4;
-    private static final int FATIGA_POR_CICLO = 2;
-    private static final int PROB_RECUPERACION = 20;
+    private static final int CICLOS_POR_FATIGA = 4; // Cada N ciclos
+    private static final int FATIGA_POR_CICLO = 2;  // Incremento gradual
+    private static final int PROB_RECUPERACION = 20; // 1 en 20
 
     private final Random random = new Random();
 
-    /* ===== Constructor ===== */
+    /* ===== Inicialización ===== */
     public Astronauta(String nombre, int oxigenoInicial) {
         this.nombre = nombre;
         this.oxigeno = Math.max(0, Math.min(100, oxigenoInicial));
@@ -47,7 +49,7 @@ public class Astronauta {
         this.fatiga = 0;
     }
 
-    /* ===== Ciclo de vida ===== */
+    /* ===== Ciclo de vida del astronauta ===== */
     public void consumirOxigeno() {
         if (!activo || estado == Estado.TERMINADO) return;
 
@@ -69,31 +71,35 @@ public class Astronauta {
         }
     }
 
-    /* ===== Reglas internas ===== */
+    /* ===== Cálculo dinámico del consumo ===== */
     private int calcularConsumo() {
         int base = CONSUMO_BASE_MIN + random.nextInt(CONSUMO_BASE_MAX);
 
+        // Emergencia acelera consumo
         if (estado == Estado.EMERGENCIA) {
             base += 2;
         }
 
+        // La fatiga incrementa el gasto
         base += fatiga / 30;
         return base;
     }
 
+    /* ===== Fatiga acumulativa ===== */
     private void aumentarFatiga() {
         if (ciclosVividos % CICLOS_POR_FATIGA == 0) {
             fatiga = Math.min(FATIGA_MAX, fatiga + FATIGA_POR_CICLO);
         }
     }
 
+    /* ===== Recuperación pasiva aleatoria ===== */
     private void recuperarFatigaAleatoria() {
         if (fatiga > 0 && random.nextInt(PROB_RECUPERACION) == 0) {
             fatiga--;
         }
     }
 
-    /* ===== Recarga ===== */
+    /* ===== Proceso de recarga ===== */
     public void recargar() {
         if (estado == Estado.TERMINADO) return;
 
@@ -108,7 +114,7 @@ public class Astronauta {
         }
     }
 
-    /* ===== Consultas ===== */
+    /* ===== Consultas de estado ===== */
     public boolean necesitaRecarga() {
         return oxigeno < UMBRAL_RECARGA && estado != Estado.TERMINADO;
     }
@@ -146,7 +152,7 @@ public class Astronauta {
         return ciclosVividos;
     }
 
-    /* ===== Debug ===== */
+    /* ===== Representación textual ===== */
     @Override
     public String toString() {
         return nombre +

@@ -7,9 +7,15 @@ import modelo.DispensadorOxigeno;
 import vista.VentanaSimulacion;
 
 public class ControladorSimulacion {
+
+    /* ===== Vista principal ===== */
     private final VentanaSimulacion vista;
+
+    /* ===== Gestión de hilos ===== */
     private final List<ControladorAstronauta> procesos;
     private final List<Thread> hilos;
+
+    /* ===== Controlador compartido ===== */
     private ControladorDispensadorOxigeno controladorDispensador;
 
     public ControladorSimulacion(VentanaSimulacion vista) {
@@ -19,12 +25,14 @@ public class ControladorSimulacion {
         conectarEventos();
     }
 
+    /* ===== Enlace Vista → Controlador ===== */
     private void conectarEventos() {
         vista.setStartListener(e -> iniciarSimulacion());
         vista.setStopListener(e -> detenerSimulacion());
         vista.setResetListener(e -> resetearSimulacion());
     }
 
+    /* ===== Inicio de la simulación ===== */
     private void iniciarSimulacion() {
         vista.habilitarControles(false);
         vista.limpiarCola();
@@ -36,10 +44,10 @@ public class ControladorSimulacion {
         procesos.clear();
         hilos.clear();
 
-        // Solo una instancia del dispensador
+        // Dispensador único compartido por todos los astronautas
         DispensadorOxigeno dispensador = new DispensadorOxigeno();
         controladorDispensador = new ControladorDispensadorOxigeno(dispensador);
-        controladorDispensador.setVista(vista); // ⭐ PASA LA VISTA AL CONTROLADOR
+        controladorDispensador.setVista(vista);
 
         for (int i = 1; i <= cantidad; i++) {
             Astronauta a = new Astronauta("Astronauta " + i, 100);
@@ -56,34 +64,36 @@ public class ControladorSimulacion {
         }
     }
 
+    /* ===== Detención controlada ===== */
     private void detenerSimulacion() {
-        // Detener primero los procesos
+
+        // Señal de parada lógica
         for (ControladorAstronauta p : procesos) {
             p.detener();
         }
 
-        // Interrumpir los hilos
+        // Interrupción de hilos
         for (Thread t : hilos) {
             t.interrupt();
         }
 
-        // Esperar a que todos terminen
+        // Espera breve para cierre ordenado
         for (Thread t : hilos) {
             try {
-                t.join(1000); // Esperar 1 segundo máximo
+                t.join(1000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
 
-        // Limpiar
         procesos.clear();
         hilos.clear();
 
         vista.habilitarControles(true);
-        vista.actualizarEstadoDispensador(false); // Asegurar que esté libre
+        vista.actualizarEstadoDispensador(false);
     }
 
+    /* ===== Reinicio completo ===== */
     private void resetearSimulacion() {
         detenerSimulacion();
         vista.limpiarLog();
